@@ -1,6 +1,12 @@
-api-webhook-service-/
-├── package.json          ← HERE (root level)
-├── api/
-│   └── vapi/
-│       ├── calendar.js
-│       └── vercel.json
+{
+  "name": "vapi-webhook-service",
+  "version": "1.0.0",
+  "description": "VAPI webhook service for calendar integration",
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
