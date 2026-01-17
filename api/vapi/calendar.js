@@ -1,6 +1,7 @@
 /**
  * VAPI Calendar Webhook - Vercel Serverless Function
  * Self-contained with no external dependencies
+ * Handles BOTH VAPI payload formats (toolCallList AND toolCalls)
  */
 
 import { MongoClient } from 'mongodb';
@@ -33,8 +34,10 @@ export default async function handler(req, res) {
     const body = req.body;
     console.log("[VAPI Calendar] Request body:", JSON.stringify(body, null, 2));
 
-    // VAPI sends tool calls in message.toolCallList
-    const toolCallList = body.message?.toolCallList || [];
+    // VAPI sends tool calls in DIFFERENT formats depending on context:
+    // Format 1: message.toolCallList (from docs)
+    // Format 2: message.toolCalls (actual API calls)
+    let toolCallList = body.message?.toolCallList || body.message?.toolCalls || [];
     
     if (toolCallList.length === 0) {
       console.log("[VAPI Calendar] No tool calls found in request");
@@ -43,27 +46,38 @@ export default async function handler(req, res) {
 
     // Process first tool call
     const toolCall = toolCallList[0];
-    const functionName = toolCall.name;
-    const parameters = toolCall.arguments || {};
+    
+    // Handle BOTH formats:
+    // Format 1: { id, name, arguments: {} }
+    // Format 2: { id, type: "function", function: { name, arguments: "{}" } }
+    let functionName, parameters;
+    
+    if (toolCall.function) {
+      // Format 2: VAPI actual API format
+      functionName = toolCall.function.name;
+      const argsStr = toolCall.function.arguments || '{}';
+      parameters = typeof argsStr === 'string' ? JSON.parse(argsStr) : argsStr;
+    } else {
+      // Format 1: VAPI docs format
+      functionName = toolCall.name;
+      parameters = toolCall.arguments || {};
+    }
+
+    console.log("[VAPI Calendar] Extracted function:", functionName);
+    console.log("[VAPI Calendar] Extracted parameters:", parameters);
 
     if (!functionName) {
+      console.error("[VAPI Calendar] Could not extract function name from toolCall:", toolCall);
       return res.status(400).json({ error: "Missing function name" });
     }
 
-    // Extract user_id from call metadata
-    const userId = body.call?.metadata?.user_id;
+    // Extract user_id from various possible locations
+    const userId = body.call?.metadata?.user_id || 
+                   body.call?.assistantOverrides?.variableValues?.user_id ||
+                   body.message?.call?.metadata?.user_id ||
+                   "1"; // Default to user 1 for testing
     
-    if (!userId) {
-      console.error("[VAPI Calendar] Missing user_id in call metadata");
-      return res.json({
-        results: [{
-          toolCallId: toolCall.id,
-          result: "I'm unable to access the calendar right now. Please contact support."
-        }]
-      });
-    }
-
-    console.log(`[VAPI Calendar] Processing <LaTex>${functionName} for user $</LaTex>{userId}`);
+    console.log(`[VAPI Calendar] Processing ${functionName} for user ${userId}`);
     console.log(`[VAPI Calendar] Parameters:`, parameters);
 
     let result;
@@ -78,12 +92,12 @@ export default async function handler(req, res) {
         break;
       
       default:
-        return res.status(400).json({ error: `Unknown function: <LaTex>${functionName}` });
+        return res.status(400).json({ error: `Unknown function: ${functionName}` });
     }
 
     const duration = Date.now() - startTime;
     console.log("[VAPI Calendar] Function result:", result);
-    console.log(`[VAPI Calendar] Total duration: $</LaTex>{duration}ms`);
+    console.log(`[VAPI Calendar] Total duration: ${duration}ms`);
     console.log("[VAPI Calendar] ========== REQUEST COMPLETE ==========");
     
     return res.json({
@@ -206,7 +220,7 @@ async function handleBookMeeting(parameters, call, userId) {
     );
 
     return {
-      result: `Perfect! I've booked <LaTex>${formatDateTime(scheduledAt)} for you. You'll receive a calendar invite at $</LaTex>{attendeeEmail} shortly.`
+      result: `Perfect! I've booked ${formatDateTime(scheduledAt)} for you. You'll receive a calendar invite at ${attendeeEmail} shortly.`
     };
   } catch (error) {
     console.error("[VAPI Calendar] Error in handleBookMeeting:", error);
@@ -231,7 +245,7 @@ async function getValidAccessToken(integration) {
       client_secret: GOOGLE_CLIENT_SECRET,
       refresh_token: integration.refreshToken,
       grant_type: 'refresh_token'
-    })
+    } )
   });
 
   const data = await response.json();
@@ -257,9 +271,9 @@ async function checkGoogleCalendar(accessToken, startTime, durationMinutes) {
   
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-    `timeMin=${startTime.toISOString()}&timeMax=<LaTex>${endTime.toISOString()}&singleEvents=true`,
+    `timeMin=${startTime.toISOString( )}&timeMax=${endTime.toISOString()}&singleEvents=true`,
     {
-      headers: { Authorization: `Bearer $</LaTex>{accessToken}` }
+      headers: { Authorization: `Bearer ${accessToken}` }
     }
   );
 
@@ -292,7 +306,7 @@ async function bookGoogleCalendarEvent(accessToken, title, startTime, durationMi
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(event)
+      body: JSON.stringify(event )
     }
   );
 
