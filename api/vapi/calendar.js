@@ -145,7 +145,7 @@ async function handleCheckAvailability(parameters, userId) {
     const db = client.db('organization');
     const integration = await db.collection('user_integrations').findOne({
       userId: parseInt(userId),
-      provider: 'google_calendar'
+      provider: 'google-calendar'
     });
 
     if (!integration) {
@@ -200,7 +200,7 @@ async function handleBookMeeting(parameters, call, userId) {
     const db = client.db('organization');
     const integration = await db.collection('user_integrations').findOne({
       userId: parseInt(userId),
-      provider: 'google_calendar'
+      provider: 'google-calendar'
     });
 
     if (!integration) {
