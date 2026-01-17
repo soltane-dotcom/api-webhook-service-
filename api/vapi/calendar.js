@@ -43,9 +43,8 @@ export default async function handler(req, res) {
 
     // Process first tool call
     const toolCall = toolCallList[0];
-    const functionName = toolCall.function?.name;
-    const argumentsStr = toolCall.function?.arguments || '{}';
-    const parameters = JSON.parse(argumentsStr);
+    const functionName = toolCall.name;
+    const parameters = toolCall.arguments || {};
 
     if (!functionName) {
       return res.status(400).json({ error: "Missing function name" });
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[VAPI Calendar] Processing ${functionName} for user ${userId}`);
+    console.log(`[VAPI Calendar] Processing <LaTex>${functionName} for user $</LaTex>{userId}`);
     console.log(`[VAPI Calendar] Parameters:`, parameters);
 
     let result;
@@ -79,12 +78,12 @@ export default async function handler(req, res) {
         break;
       
       default:
-        return res.status(400).json({ error: `Unknown function: ${functionName}` });
+        return res.status(400).json({ error: `Unknown function: <LaTex>${functionName}` });
     }
 
     const duration = Date.now() - startTime;
     console.log("[VAPI Calendar] Function result:", result);
-    console.log(`[VAPI Calendar] Total duration: ${duration}ms`);
+    console.log(`[VAPI Calendar] Total duration: $</LaTex>{duration}ms`);
     console.log("[VAPI Calendar] ========== REQUEST COMPLETE ==========");
     
     return res.json({
@@ -207,7 +206,7 @@ async function handleBookMeeting(parameters, call, userId) {
     );
 
     return {
-      result: `Perfect! I've booked ${formatDateTime(scheduledAt)} for you. You'll receive a calendar invite at ${attendeeEmail} shortly.`
+      result: `Perfect! I've booked <LaTex>${formatDateTime(scheduledAt)} for you. You'll receive a calendar invite at $</LaTex>{attendeeEmail} shortly.`
     };
   } catch (error) {
     console.error("[VAPI Calendar] Error in handleBookMeeting:", error);
@@ -258,9 +257,9 @@ async function checkGoogleCalendar(accessToken, startTime, durationMinutes) {
   
   const response = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-    `timeMin=${startTime.toISOString()}&timeMax=${endTime.toISOString()}&singleEvents=true`,
+    `timeMin=${startTime.toISOString()}&timeMax=<LaTex>${endTime.toISOString()}&singleEvents=true`,
     {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer $</LaTex>{accessToken}` }
     }
   );
 
