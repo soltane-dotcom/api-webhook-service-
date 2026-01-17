@@ -1,0 +1,6 @@
+api-webhook-service-/
+├── package.json          ← HERE (root level)
+├── api/
+│   └── vapi/
+│       ├── calendar.js
+│       └── vercel.json
